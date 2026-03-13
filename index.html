@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Corporate Attendance Portal</title>
+    <style>
+        :root {
+            --primary: #002e5d;
+            --accent: #007bff;
+            --danger: #d9534f;
+            --success: #28a745;
+            --bg: #f4f7f9;
+        }
+        body { font-family: 'Segoe UI', Roboto, sans-serif; margin: 0; background: var(--bg); color: #333; }
+        .wrapper { display: flex; justify-content: center; min-height: 100vh; }
+        .card { width: 100%; max-width: 450px; background: white; padding: 30px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        
+        .logo-container { text-align: center; margin-bottom: 25px; }
+        .logo { max-width: 180px; height: auto; }
+        
+        .notice { 
+            background: #fff5f5; border-left: 4px solid var(--danger); 
+            padding: 15px; font-size: 0.85rem; color: #a94442; 
+            margin-bottom: 25px; text-align: left; line-height: 1.4;
+        }
+
+        h2 { font-size: 1.4rem; color: var(--primary); margin-bottom: 20px; text-align: center; }
+        
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 5px; color: #555; }
+        input, select { 
+            width: 100%; padding: 12px; border: 1px solid #ddd; 
+            border-radius: 6px; box-sizing: border-box; font-size: 1rem;
+        }
+        input:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 5px rgba(0,123,255,0.2); }
+
+        .btn { 
+            background: var(--primary); color: white; border: none; 
+            padding: 16px; width: 100%; border-radius: 6px; 
+            font-size: 1.1rem; font-weight: bold; cursor: pointer; 
+            transition: background 0.3s; margin-top: 10px;
+        }
+        .btn:disabled { background: #cbd5e0; cursor: not-allowed; }
+        
+        #status-area { margin-top: 20px; padding: 15px; border-radius: 6px; font-size: 0.9rem; text-align: center; }
+        .out-of-range { background: #ffebeb; color: var(--danger); }
+        .in-range { background: #ebffef; color: var(--success); }
+    </style>
+</head>
+<body>
+
+<div class="wrapper">
+    <div class="card">
+        <div class="logo-container">
+            <img src="https://via.placeholder.com/180x60?text=CORPORATE+LOGO" alt="Logo" class="logo">
+        </div>
+
+        <div class="notice">
+            <strong>IMPORTANT NOTICE:</strong> This system uses GPS verification. Attendance can only be marked at the main entrance. Misuse is subject to disciplinary action.
+        </div>
+
+        <div id="main-content">
+            </div>
+
+        <div id="status-area" class="out-of-range">
+            Detecting Location...
+        </div>
+    </div>
+</div>
+
+<script>
+    const GATE_LOC = { lat: 22.5726, lng: 88.3639 }; // SET YOUR COORDINATES HERE
+    const RADIUS = 50; 
+    const SCRIPT_URL = "YOUR_DEPLOYED_WEB_APP_URL_HERE";
+
+    let user = JSON.parse(localStorage.getItem('user_profile'));
+    let canSubmit = false;
+
+    function init() {
+        const content = document.getElementById('main-content');
+        if (!user) {
+            content.innerHTML = `
+                <h2>Initial Registration</h2>
+                <div class="form-group"><label>Full Name</label><input type="text" id="name" required></div>
+                <div class="form-group"><label>Mobile Number (Unique ID)</label><input type="tel" id="phone" required></div>
+                <div class="form-group"><label>Address</label><input type="text" id="address" required></div>
+                <div class="form-group"><label>Emergency Contact</label><input type="tel" id="emergency" required></div>
+                <div class="form-group">
+                    <label>Blood Group</label>
+                    <select id="blood" required>
+                        <option value="">-- Select --</option>
+                        <option>A+</option><option>A-</option><option>B+</option><option>B-</option>
+                        <option>O+</option><option>O-</option><option>AB+</option><option>AB-</option>
+                    </select>
+                </div>
+                <button class="btn" id="sub-btn" onclick="saveAndSubmit()">Register & Submit</button>
+            `;
+        } else {
+            content.innerHTML = `
+                <h2>Welcome back,</h2>
+                <div style="text-align:center; margin-bottom:20px;">
+                    <strong style="font-size:1.2rem;">${user.name}</strong><br>
+                    <span style="color:#666;">ID: ${user.phone}</span>
+                </div>
+                <button class="btn" id="sub-btn" onclick="submitScan()" disabled>Verify Location to Scan</button>
+            `;
+        }
+        startGpsTracking();
+    }
+
+    function startGpsTracking() {
+        if (!navigator.geolocation) return alert("GPS not supported.");
+        
+        navigator.geolocation.watchPosition(pos => {
+            const dist = getDistance(pos.coords.latitude, pos.coords.longitude, GATE_LOC.lat, GATE_LOC.lng);
+            const status = document.getElementById('status-area');
+            const btn = document.getElementById('sub-btn');
+
+            if (dist <= RADIUS) {
+                status.innerText = "Location Verified ✔️";
+                status.className = "in-range";
+                canSubmit = true;
+                if(btn) btn.disabled = false;
+            } else {
+                status.innerText = "Too far from entrance (" + Math.round(dist) + "m)";
+                status.className = "out-of-range";
+                canSubmit = false;
+                if(btn) btn.disabled = true;
+            }
+        }, err => { alert("Please enable GPS/Location access."); });
+    }
+
+    function getDistance(lat1, lon1, lat2, lon2) {
+        const R = 6371e3;
+        const dLat = (lat2-lat1)*Math.PI/180;
+        const dLon = (lon2-lon1)*Math.PI/180;
+        const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    }
+
+    async function saveAndSubmit() {
+        const data = {
+            name: document.getElementById('name').value,
+            phone: document.getElementById('phone').value,
+            address: document.getElementById('address').value,
+            emergency: document.getElementById('emergency').value,
+            blood: document.getElementById('blood').value
+        };
+
+        if(!data.name || !data.phone || !data.emergency || !data.blood) {
+            alert("All fields are mandatory!");
+            return;
+        }
+
+        localStorage.setItem('user_profile', JSON.stringify(data));
+        user = data;
+        submitScan();
+    }
+
+    async function submitScan() {
+        const btn = document.getElementById('sub-btn');
+        btn.innerText = "Processing...";
+        btn.disabled = true;
+
+        try {
+            const res = await fetch(SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                body: JSON.stringify(user)
+            });
+            alert("Request sent to server. Check your Sheet for confirmation.");
+            location.reload();
+        } catch (e) {
+            alert("Connection error.");
+            btn.disabled = false;
+        }
+    }
+
+    init();
+</script>
+</body>
+</html>
