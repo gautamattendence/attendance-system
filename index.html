@@ -5,79 +5,95 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BS Elevator India - Attendance</title>
     <style>
-        body { font-family: Arial, sans-serif; background-color: #f0f2f5; margin: 0; padding: 20px; display: flex; justify-content: center; }
-        .container { background-color: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
+        /* Modern, Mobile-First Design */
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; margin: 0; padding: 15px; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; }
+        .container { background-color: #ffffff; padding: 25px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; box-sizing: border-box; }
         
-        /* LOGO STYLING */
-        .logo-container { margin-bottom: 20px; }
-        .logo-img { width: 150px; height: auto; border-radius: 8px; margin-bottom: 10px; }
-        .company-name { font-weight: bold; font-size: 1.4rem; color: #002e5d; }
+        /* Centered Logo Styling */
+        .logo-container { margin-bottom: 20px; display: flex; flex-direction: column; align-items: center; }
+        .logo-img { width: 160px; height: auto; border-radius: 10px; margin-bottom: 5px; }
+        
+        .notice { background-color: #fff5f5; border-left: 4px solid #e53e3e; color: #c53030; padding: 12px; font-size: 0.85rem; text-align: left; margin-bottom: 20px; border-radius: 4px; line-height: 1.4; }
+        h2 { color: #002e5d; margin: 0 0 20px 0; font-size: 1.5rem; }
 
+        /* Form Layout */
         .form-group { text-align: left; margin-bottom: 15px; }
-        label { display: block; font-weight: bold; margin-bottom: 5px; color: #333; }
-        input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
+        label { display: block; margin-bottom: 6px; font-weight: 600; color: #4a5568; font-size: 0.9rem; }
+        input, select { width: 100%; padding: 12px; border: 1px solid #cbd5e0; border-radius: 8px; box-sizing: border-box; font-size: 1rem; transition: border-color 0.2s; }
+        input:focus { outline: none; border-color: #002e5d; box-shadow: 0 0 0 3px rgba(0,46,93,0.1); }
         
-        button { width: 100%; padding: 12px; background-color: #002e5d; color: white; border: none; border-radius: 5px; font-size: 1rem; cursor: pointer; font-weight: bold; }
-        button:disabled { background-color: #cccccc; }
+        /* Button States */
+        button { width: 100%; padding: 14px; background-color: #002e5d; color: white; border: none; border-radius: 8px; font-size: 1.1rem; font-weight: bold; cursor: pointer; margin-top: 10px; transition: background 0.3s; }
+        button:disabled { background-color: #a0aec0; cursor: not-allowed; }
         
-        #status { margin-top: 15px; padding: 10px; border-radius: 5px; display: none; font-weight: bold; }
-        .success { background-color: #d4edda; color: #155724; }
+        /* Status Feedback */
+        #status { margin-top: 15px; padding: 12px; border-radius: 8px; display: none; font-weight: bold; font-size: 0.9rem; }
+        .success { background-color: #f0fff4; color: #2f855a; border: 1px solid #c6f6d5; }
+        .error { background-color: #fff5f5; color: #c53030; border: 1px solid #fed7d7; }
     </style>
 </head>
 <body>
 
-<div class="logo-container">
-    <img src="logo.jpg" alt="BS Elevator Logo" class="logo-img">
-</div>
+<div class="container">
+    <div class="logo-container">
+        <img src="logo.jpg" alt="BS Elevator Logo" class="logo-img">
+    </div>
 
+    <div class="notice">
+        <strong>GPS SECURITY:</strong> You must be within 50 meters of the site gate to submit your attendance.
+    </div>
+
+    <h2>Attendance Log</h2>
+    
     <form id="attendanceForm">
         <div class="form-group">
-            <label>Employee Name</label>
-            <input type="text" name="name" required>
+            <label>Full Name</label>
+            <input type="text" name="name" required placeholder="Enter your name">
         </div>
         <div class="form-group">
-            <label>Mobile Number</label>
-            <input type="tel" name="mobile" required>
+            <label>Mobile Number (Unique ID)</label>
+            <input type="tel" name="mobile" required placeholder="Enter mobile number">
         </div>
         <div class="form-group">
             <label>Blood Group</label>
-            <select name="blood">
+            <select name="blood" required>
+                <option value="">-- Select --</option>
                 <option>A+</option><option>B+</option><option>O+</option><option>AB+</option>
                 <option>A-</option><option>B-</option><option>O-</option><option>AB-</option>
             </select>
         </div>
-        <button type="submit" id="submitBtn">Submit Attendance</button>
+
+        <button type="submit" id="submitBtn" disabled>Checking Location...</button>
+        <div id="status"></div>
     </form>
-    <div id="status"></div>
 </div>
 
 <script>
-    const scriptURL = https://script.google.com/macros/s/AKfycbyTSbBQJBc1WiKYaU1Lxr3T6QMI2Zs58z3n6td7mhBDPeeXZqufSFUEIV0n1FmXTcXA/exec; // Replace this with your Google App Script URL
-    const form = document.getElementById('attendanceForm');
-    const statusDiv = document.getElementById('status');
+    // Configuration
+    const GATE_LOC = { lat: 22.443317, lng: 88.41532 }; // Your specific coordinates
+    const RADIUS = 50; // Distance in meters
+    const SCRIPT_URL = "YOUR_DEPLOYED_WEB_APP_URL_HERE"; // PASTE YOUR GOOGLE LINK HERE
+
     const btn = document.getElementById('submitBtn');
+    const statusDiv = document.getElementById('status');
 
-    form.addEventListener('submit', e => {
-        e.preventDefault();
-        btn.disabled = true;
-        btn.innerText = "Processing...";
-
-        fetch(scriptURL, { method: 'POST', body: new FormData(form)})
-            .then(response => {
-                statusDiv.innerText = "Attendance Submitted Successfully! ✔️";
-                statusDiv.className = "success";
-                statusDiv.style.display = "block";
-                form.reset();
-            })
-            .catch(error => {
-                alert("Error! Check your Script URL.");
-            })
-            .finally(() => {
-                btn.disabled = false;
-                btn.innerText = "Submit Attendance";
+    // Monitor GPS Location
+    window.onload = function() {
+        if (navigator.geolocation) {
+            navigator.geolocation.watchPosition(checkLocation, showError, {
+                enableHighAccuracy: true
             });
-    });
-</script>
+        } else {
+            updateStatus("Geolocation not supported by this browser.", "error");
+        }
+    };
 
-</body>
-</html>
+    function checkLocation(position) {
+        const userLat = position.coords.latitude;
+        const userLng = position.coords.longitude;
+        const distance = calculateDistance(userLat, userLng, GATE_LOC.lat, GATE_LOC.lng);
+        
+        if (distance <= RADIUS) {
+            updateStatus("Location Verified ✔️", "success");
+            btn.disabled = false;
+            btn.
